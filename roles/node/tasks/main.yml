@@ -109,6 +109,13 @@
   when: _node_restore_relaychain or _node_restore_parachain
   tags: [node, node-restore-chain]
 
+- name: node | Generate network key
+  ansible.builtin.include_tasks:
+    file: 810-node-key.yaml
+    apply:
+      tags: [node, node-generate-network-key]
+  tags: [node, node-generate-network-key]
+
 - name: node | Systemd
   ansible.builtin.include_tasks:
     file: 900-systemd.yml

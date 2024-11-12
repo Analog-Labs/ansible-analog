@@ -1,0 +1,38 @@
+---
+- name: Generate node key | Check current binary path exists
+  ansible.builtin.stat:
+    path: "{{ _node_binary_path }}"
+  register: _node_binary_path_stat
+- name: Generate node key | Check current binary file exists
+  ansible.builtin.stat:
+    path: "{{ _node_binary_path }}/{{ _node_main_binary_file_name }}"
+  register: _node_binary_file_stat
+  when: _node_binary_path_stat.stat.exists and _node_binary_path_stat.stat.isdir
+- name: Generate node key | Export chain specification
+  ansible.builtin.command: "{{ _node_binary_path }}/{{ _node_main_binary_file_name }} build-spec --chain {{ node_chain }}"
+  register: _node_current_chainspec
+  check_mode: false
+  changed_when: false
+- name: Generate node key | Set chain id
+  ansible.builtin.set_fact:
+    _node_chain_id: "{{ (_node_current_chainspec.stdout | from_json).id }}"
+- name: Generate node key | Print chain_id
+  ansible.builtin.debug:
+    var: _node_chain_id
+- name: Generate node key | Check network key exists
+  ansible.builtin.stat:
+    path: "{{ _node_data_root_path }}/chains/{{ _node_chain_id }}/network/secret_ed25519"
+  register: _node_network_key_stat
+- block:
+  - name: Generate node key | Ensure directory exists
+    file:
+      path: "{{ _node_data_root_path }}/chains/{{ _node_chain_id }}/network"
+      state: directory
+      owner: "{{ node_user }}"
+      group: "{{ node_user }}"
+  - name: Generate node key | Generate node key
+    ansible.builtin.command: "{{ _node_binary_path }}/{{ _node_main_binary_file_name }} key generate-node-key --file {{ _node_data_root_path }}/chains/{{ _node_chain_id }}/network/secret_ed25519"
+    when: _node_binary_file_stat.stat is defined and _node_binary_file_stat.stat.exists and _node_binary_file_stat.stat.isreg and not _node_network_key_stat.stat.exists
+    check_mode: false
+    changed_when: false
+  when: not _node_network_key_stat.stat.exists
